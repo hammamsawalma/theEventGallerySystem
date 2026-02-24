@@ -1,0 +1,142 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Core Actors
+model User {
+  id        String   @id @default(uuid())
+  name      String
+  email     String   @unique
+  password  String
+  role      String   // "MANAGER", "WAREHOUSE", "SALES", "ACCOUNTANT"
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String   @unique
+  sales     Sale[]
+}
+
+model Category {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  rawItems RawItem[]
+}
+
+model ExpenseCategory {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  expenses Expense[]
+}
+
+// Inventory & Manufacturing
+model RawItem {
+  id                String   @id @default(uuid())
+  name              String
+  imageUrl          String?
+  isBulk            Boolean  @default(false)
+  currentStock      Float    @default(0)
+  movingAverageCost Float    @default(0) 
+  category          Category @relation(fields: [categoryId], references: [id])
+  categoryId        String
+  bomItems          KitBOM[]
+  purchaseLineItems PurchaseLineItem[]
+}
+
+model Kit {
+  id             String   @id @default(uuid())
+  name           String
+  imageUrl       String?
+  baseSalePrice  Float
+  currentStock   Int      @default(0)
+  bomItems       KitBOM[]
+}
+
+model KitBOM {
+  id         String   @id @default(uuid())
+  kit        Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  kitId      String
+  rawItem    RawItem  @relation(fields: [rawItemId], references: [id])
+  rawItemId  String
+  quantity   Float
+}
+
+// Purchasing
+model Purchase {
+  id          String   @id @default(uuid())
+  date        DateTime @default(now())
+  status      String   // PENDING, COMPLETED
+  landedCost  Float    @default(0)
+  items       PurchaseLineItem[]
+}
+
+model PurchaseLineItem {
+  id         String   @id @default(uuid())
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  purchaseId String
+  rawItem    RawItem  @relation(fields: [rawItemId], references: [id])
+  rawItemId  String
+  quantity   Float
+  unitPrice  Float
+}
+
+// Sales & Point of Sale (POS)
+model Sale {
+  id             String   @id @default(uuid())
+  customer       Customer @relation(fields: [customerId], references: [id])
+  customerId     String
+  date           DateTime @default(now())
+  discountAmount Float    @default(0)
+  totalAmount    Float
+  items          SaleLineItem[]
+}
+
+model SaleLineItem {
+  id               String   @id @default(uuid())
+  sale             Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId           String
+  itemType         String   // 'RAW_ITEM', 'KIT', 'CUSTOM'
+  itemId           String?   
+  quantity         Int
+  unitPrice        Float
+  unitCostAtSale   Float    // Snapshotted moving average cost (0 for CUSTOM)
+  description      String?  // Description for CUSTOM rows
+  isCustomized     Boolean  @default(false) 
+  customizations   Customization[] 
+}
+
+model Customization {
+  id             String       @id @default(uuid())
+  saleLineItem   SaleLineItem @relation(fields: [saleLineItemId], references: [id], onDelete: Cascade)
+  saleLineItemId String
+  rawItemId      String
+  quantityAdded  Float
+  extraPrice     Float
+}
+
+// Financials & System
+model Expense {
+  id          String          @id @default(uuid())
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  categoryId  String
+  amount      Float
+  date        DateTime        @default(now())
+  description String
+}
+
+model SystemLog {
+  id          String   @id @default(uuid())
+  userId      String
+  action      String
+  details     String
+  date        DateTime @default(now())
+}
