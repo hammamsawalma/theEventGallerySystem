@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const body = await request.json();
-        const { customerName, customerPhone, items, discountAmount, totalAmount } = body;
+        const { customerName, customerPhone, items, discountAmount, totalAmount, depositAmount } = body;
         // items: array of { itemType: 'RAW_ITEM' | 'KIT', itemId: string, quantity: number, unitPrice: number, customizations?: { rawItemId: string, quantityAdded: number, extraPrice: number }[] }
 
         if (!customerName || !customerPhone || !items || items.length === 0) {
@@ -96,6 +96,23 @@ export async function POST(request: Request) {
                             });
                         }
                     }
+                } else if (item.itemType === 'RENTAL') {
+                    // Process rental sale
+                    const rentalItem = await tx.rentalItem.findUnique({ where: { id: item.itemId } });
+                    if (!rentalItem) {
+                        throw new Error(`Rental item not found: ${item.itemId}`);
+                    }
+
+                    // Note: We do NOT explicitly check `currentStock < item.quantity` here because
+                    // future availability is complex. The frontend should have already verified
+                    // availability via the `/api/rentals/availability` endpoint before enabling Checkout.
+
+                    // We DO deduct the total physical pool of available real-time stock
+                    if (rentalItem.totalStock < item.quantity) {
+                        throw new Error(`Requested quantity exceeds total owned stock for ${rentalItem.name}`);
+                    }
+
+                    unitCostAtSale = 0; // Rentals do not have a COGS moving average
                 }
 
                 // Add calculated unitCostAtSale back to the item object for the record
@@ -107,6 +124,7 @@ export async function POST(request: Request) {
                 data: {
                     customerId: customer.id,
                     discountAmount: discountAmount || 0,
+                    depositAmount: depositAmount || 0,
                     totalAmount: totalAmount,
                     items: {
                         create: items.map((item: any) => ({
@@ -117,6 +135,10 @@ export async function POST(request: Request) {
                             unitCostAtSale: item.unitCostAtSale,
                             description: item.description || null,
                             isCustomized: item.customizations && item.customizations.length > 0,
+                            rentalItemId: item.itemType === 'RENTAL' ? item.itemId : null,
+                            rentalStartDate: item.rentalStartDate ? new Date(item.rentalStartDate) : null,
+                            rentalEndDate: item.rentalEndDate ? new Date(item.rentalEndDate) : null,
+                            rentalDays: item.rentalDays || null,
                             customizations: item.customizations ? {
                                 create: item.customizations.map((custom: any) => ({
                                     rawItemId: custom.rawItemId,

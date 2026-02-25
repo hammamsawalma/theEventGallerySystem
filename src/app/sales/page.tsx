@@ -16,12 +16,14 @@ import { generateInvoicePDF } from "@/lib/pdfGenerator";
 export default function SalesPOSPage() {
     const [kits, setKits] = useState<any[]>([]);
     const [rawItems, setRawItems] = useState<any[]>([]);
+    const [rentals, setRentals] = useState<any[]>([]);
     const [customers, setCustomers] = useState<any[]>([]);
     const [cart, setCart] = useState<any[]>([]);
 
     // Search state
     const [kitSearchQuery, setKitSearchQuery] = useState("");
     const [itemSearchQuery, setItemSearchQuery] = useState("");
+    const [rentalSearchQuery, setRentalSearchQuery] = useState("");
 
     // Checkout state
     const [customerName, setCustomerName] = useState("");
@@ -29,6 +31,7 @@ export default function SalesPOSPage() {
     const [customerNameOpen, setCustomerNameOpen] = useState(false);
     const [customerPhoneOpen, setCustomerPhoneOpen] = useState(false);
     const [discountAmount, setDiscountAmount] = useState<number>(0);
+    const [depositAmount, setDepositAmount] = useState<number>(0);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
 
     // Custom Row state
@@ -48,12 +51,21 @@ export default function SalesPOSPage() {
     const [rawItemQty, setRawItemQty] = useState(1);
     const [rawItemOverridePrice, setRawItemOverridePrice] = useState<number>(0);
 
+    // Rental Modal state
+    const [isRentalModalOpen, setIsRentalModalOpen] = useState(false);
+    const [activeRental, setActiveRental] = useState<any>(null);
+    const [rentalStartDate, setRentalStartDate] = useState("");
+    const [rentalEndDate, setRentalEndDate] = useState("");
+    const [rentalQty, setRentalQty] = useState(1);
+    const [rentalCheckStatus, setRentalCheckStatus] = useState<{ loading: boolean, error: string | null, maxAvailable: number | null }>({ loading: false, error: null, maxAvailable: null });
+
     const [originalEditId, setOriginalEditId] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch("/api/kits").then(res => res.json()).then(setKits);
-        fetch("/api/raw-items").then(res => res.json()).then(setRawItems);
-        fetch("/api/customers").then(res => res.json()).then(setCustomers);
+        fetch("/api/kits").then(res => res.json()).then(data => setKits(Array.isArray(data) ? data : []));
+        fetch("/api/raw-items").then(res => res.json()).then(data => setRawItems(Array.isArray(data) ? data : []));
+        fetch("/api/rentals").then(res => res.json()).then(data => setRentals(Array.isArray(data) ? data : []));
+        fetch("/api/customers").then(res => res.json()).then(data => setCustomers(Array.isArray(data) ? data : []));
 
         // Check if we are editing an order
         const editDraftStr = localStorage.getItem("editOrderDraft");
@@ -68,10 +80,13 @@ export default function SalesPOSPage() {
                 // Map API items back to cart items
                 const rebuiltCart = draft.items.map((apiItem: any) => ({
                     id: apiItem.itemId,
-                    name: apiItem.itemType === 'KIT' ? "Kit " + apiItem.itemId.slice(-4) : "Raw Item " + apiItem.itemId.slice(-4), // We rely on the cards to show real names, but for draft we do best-effort
+                    name: apiItem.itemType === 'KIT' ? "Kit " + apiItem.itemId?.slice(-4) : (apiItem.itemType === 'RENTAL' ? "Rental " + apiItem.itemId?.slice(-4) : "Raw Item " + apiItem.itemId?.slice(-4)),
                     price: apiItem.unitPrice,
                     type: apiItem.itemType,
                     qty: apiItem.quantity,
+                    rentalStartDate: apiItem.rentalStartDate,
+                    rentalEndDate: apiItem.rentalEndDate,
+                    rentalDays: apiItem.rentalDays,
                     customizations: apiItem.customizations?.map((c: any) => ({
                         rawItemId: c.rawItemId,
                         name: "Custom Item " + c.rawItemId.slice(-4),
@@ -87,11 +102,11 @@ export default function SalesPOSPage() {
         }
     }, []);
 
-    const addToCart = (item: any, type: 'KIT' | 'RAW_ITEM', customDetails?: any[], finalPriceOverride?: number, qtyOverride: number = 1) => {
-        const priceToUse = finalPriceOverride !== undefined ? finalPriceOverride : (item.baseSalePrice || item.movingAverageCost || 0);
+    const addToCart = (item: any, type: 'KIT' | 'RAW_ITEM' | 'RENTAL', customDetails?: any[], finalPriceOverride?: number, qtyOverride: number = 1, rentalDetails?: any) => {
+        const priceToUse = finalPriceOverride !== undefined ? finalPriceOverride : (item.baseSalePrice || item.movingAverageCost || item.dailyPrice || 0);
         setCart((prev) => {
-            const existing = prev.find(i => i.id === item.id && i.type === type && i.price === priceToUse && JSON.stringify(i.customizations) === JSON.stringify(customDetails));
-            if (existing) {
+            const existing = prev.find(i => i.id === item.id && i.type === type && i.price === priceToUse && JSON.stringify(i.customizations) === JSON.stringify(customDetails) && i.rentalStartDate === rentalDetails?.rentalStartDate);
+            if (existing && type !== 'RENTAL') { // we allow combining standard items, but rentals are kept separate per date pair safely
                 return prev.map(i => i === existing ? { ...i, qty: i.qty + qtyOverride } : i);
             }
             return [...prev, {
@@ -102,7 +117,8 @@ export default function SalesPOSPage() {
                 price: priceToUse,
                 type,
                 qty: qtyOverride,
-                customizations: customDetails
+                customizations: customDetails,
+                ...rentalDetails
             }];
         });
     };
@@ -163,6 +179,65 @@ export default function SalesPOSPage() {
     const commitRawItem = () => {
         addToCart(activeRawItem, 'RAW_ITEM', undefined, rawItemOverridePrice / rawItemQty, rawItemQty);
         setIsRawItemModalOpen(false);
+    };
+
+    const openRentalModal = (rental: any) => {
+        setActiveRental(rental);
+        // Default to today and tomorrow
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+
+        setRentalStartDate(today.toISOString().split('T')[0]);
+        setRentalEndDate(tomorrow.toISOString().split('T')[0]);
+        setRentalQty(1);
+        setRentalCheckStatus({ loading: false, error: null, maxAvailable: null });
+        setIsRentalModalOpen(true);
+    };
+
+    const checkRentalAvailability = async () => {
+        if (!rentalStartDate || !rentalEndDate || !activeRental) return;
+        setRentalCheckStatus({ loading: true, error: null, maxAvailable: null });
+        try {
+            const res = await fetch(`/api/rentals/availability?rentalItemId=${activeRental.id}&startDate=${rentalStartDate}&endDate=${rentalEndDate}`);
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error);
+
+            // Adjust to ensure we don't return negative maxAvailable if math fails
+            setRentalCheckStatus({ loading: false, error: null, maxAvailable: data.availableStock });
+            if (rentalQty > data.availableStock) {
+                setRentalQty(Math.max(1, data.availableStock));
+            }
+        } catch (err: any) {
+            setRentalCheckStatus({ loading: false, error: err.message, maxAvailable: null });
+        }
+    };
+
+    // Auto-check availability when dates change
+    useEffect(() => {
+        if (isRentalModalOpen && activeRental) {
+            checkRentalAvailability();
+        }
+    }, [rentalStartDate, rentalEndDate]);
+
+    const commitRental = () => {
+        if (rentalCheckStatus.maxAvailable === null || rentalQty > rentalCheckStatus.maxAvailable) {
+            alert("Cannot add. Please select valid dates and quantity within limits.");
+            return;
+        }
+
+        const s = new Date(rentalStartDate);
+        const e = new Date(rentalEndDate);
+        const diffTime = Math.abs(e.getTime() - s.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) || 1; // Minimum 1 day
+
+        addToCart(activeRental, 'RENTAL', undefined, activeRental.dailyPrice * diffDays, rentalQty, {
+            rentalStartDate,
+            rentalEndDate,
+            rentalDays: diffDays
+        });
+
+        setIsRentalModalOpen(false);
     };
 
     const removeFromCart = (index: number) => {
@@ -245,8 +320,8 @@ export default function SalesPOSPage() {
                         extraPrice: c.extraPrice
                     }))
                 })),
-                discountAmount: discountAmount || 0,
-                totalAmount: cartTotal - (discountAmount || 0)
+                totalAmount: cartTotal - (discountAmount || 0),
+                depositAmount: depositAmount || 0
             };
 
             // If we were editing, delete the old order first to free up stock
@@ -316,7 +391,7 @@ export default function SalesPOSPage() {
                     </div>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {kits.filter(kit => kit.name.toLowerCase().includes(kitSearchQuery.toLowerCase())).map(kit => (
+                    {kits.filter(kit => kit.currentStock > 0 && kit.name.toLowerCase().includes(kitSearchQuery.toLowerCase())).map(kit => (
                         <Card key={kit.id} className="flex flex-col">
                             <div className="aspect-square bg-muted flex items-center justify-center text-muted-foreground w-full h-32 rounded-t-lg border-b overflow-hidden relative">
                                 {kit.imageUrl ? <ImagePreview src={kit.imageUrl} className="object-cover w-full h-full absolute inset-0" alt={kit.name} /> : <div className="text-xs">No Image</div>}
@@ -348,12 +423,13 @@ export default function SalesPOSPage() {
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {rawItems.filter(item =>
-                        item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
-                        item.category?.name?.toLowerCase().includes(itemSearchQuery.toLowerCase())
+                        item.currentStock > 0 &&
+                        (item.name.toLowerCase().includes(itemSearchQuery.toLowerCase()) ||
+                            item.category?.name?.toLowerCase().includes(itemSearchQuery.toLowerCase()))
                     ).map(item => (
                         <Card key={item.id} className="flex flex-col">
                             <div className="aspect-square bg-muted flex items-center justify-center text-muted-foreground w-full h-32 rounded-t-lg border-b overflow-hidden relative">
-                                {item.imageUrl ? <ImagePreview src={item.imageUrl} className="object-cover w-full h-full absolute inset-0" alt={item.name} /> : <div className="text-xs">No Image</div>}
+                                {item.imageUrl ? <ImagePreview src={item.imageUrl} className="object-cover w-full h-full absolute inset-0" alt={item.name} /> : <div className="text-[10px] w-full h-full flex items-center justify-center text-muted-foreground font-semibold bg-secondary/30">N/A</div>}
                             </div>
                             <CardContent className="p-4 flex-1 flex flex-col justify-between cursor-pointer hover:bg-primary/5 transition-colors" onClick={() => openRawItemModal(item)}>
                                 <div>
@@ -364,6 +440,41 @@ export default function SalesPOSPage() {
                                     <div className="text-sm text-muted-foreground font-semibold mt-2">${(item.baseSalePrice || item.movingAverageCost || 0).toFixed(2)}</div>
                                 </div>
                                 <div className="text-xs mt-2 text-primary font-bold">{item.currentStock.toFixed(1)} in stock</div>
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+
+                {/* Rentals Section */}
+                <div className="flex justify-between items-center mt-6 border-t pt-4">
+                    <h3 className="text-lg font-semibold text-blue-600">Rentals & Props</h3>
+                    <div className="w-64">
+                        <Input
+                            placeholder="Search rentals..."
+                            value={rentalSearchQuery}
+                            onChange={(e) => setRentalSearchQuery(e.target.value)}
+                            className="bg-background h-8 text-sm"
+                        />
+                    </div>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 pb-12">
+                    {rentals.filter(rental =>
+                        rental.name.toLowerCase().includes(rentalSearchQuery.toLowerCase()) ||
+                        rental.category?.name?.toLowerCase().includes(rentalSearchQuery.toLowerCase())
+                    ).map(rental => (
+                        <Card key={rental.id} className="flex flex-col border-blue-200 shadow-sm relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 bg-blue-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-bl-md z-10 shadow-sm">RENTAL</div>
+                            <div className="aspect-square bg-muted flex items-center justify-center text-muted-foreground w-full h-32 rounded-t-lg border-b border-blue-100 overflow-hidden relative">
+                                {rental.imageUrl ? <ImagePreview src={rental.imageUrl} className="object-cover w-full h-full absolute inset-0 group-hover:scale-105 transition-transform duration-500" alt={rental.name} /> : <div className="text-[10px] w-full h-full flex items-center justify-center text-muted-foreground font-semibold bg-secondary/30">N/A</div>}
+                            </div>
+                            <CardContent className="p-4 flex-1 flex flex-col justify-between cursor-pointer hover:bg-blue-50 transition-colors" onClick={() => openRentalModal(rental)}>
+                                <div>
+                                    <div className="flex justify-between items-start gap-2 mb-1">
+                                        <div className="font-bold text-sm leading-tight flex-1">{rental.name}</div>
+                                    </div>
+                                    <span className="bg-blue-100 text-blue-700 uppercase font-bold text-[9px] px-1.5 py-0.5 rounded-full">{rental.category?.name || 'Uncategorized'}</span>
+                                    <div className="text-sm font-semibold mt-2 text-blue-600">${rental.dailyPrice.toFixed(2)} <span className="text-[9px] text-muted-foreground font-normal">/ day</span></div>
+                                </div>
                             </CardContent>
                         </Card>
                     ))}
@@ -438,6 +549,12 @@ export default function SalesPOSPage() {
                                     ))}
                                 </div>
                             )}
+                            {item.type === 'RENTAL' && (
+                                <div className="text-xs text-blue-600 bg-blue-50 mt-3 p-2 rounded border border-blue-100 flex flex-col gap-1">
+                                    <div className="font-semibold uppercase text-[10px]">Rental Dates ({item.rentalDays} Days):</div>
+                                    <div>{item.rentalStartDate} to {item.rentalEndDate}</div>
+                                </div>
+                            )}
                         </div>
                     ))}
 
@@ -497,20 +614,30 @@ export default function SalesPOSPage() {
                     <div className="flex items-center justify-between text-sm py-2 border-y border-dashed">
                         <span className="font-semibold text-muted-foreground">Discount ({'$'})</span>
                         <div className="w-24">
-                            <Input type="number" className="h-8 text-right font-mono" placeholder="0.00" value={discountAmount || ''} onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)} />
+                            <Input type="number" className="h-8 text-right font-mono" min="0" placeholder="0.00" value={discountAmount || ''} onChange={(e) => setDiscountAmount(parseFloat(e.target.value) || 0)} />
+                        </div>
+                    </div>
+
+                    <div className="flex items-center justify-between text-sm pb-2 border-b border-dashed">
+                        <span className="font-semibold text-blue-600 flex flex-col">
+                            Deposit ({'$'})
+                            <span className="text-[10px] font-normal text-muted-foreground">Returned upon safe check-in</span>
+                        </span>
+                        <div className="w-24">
+                            <Input type="number" className="h-8 text-right font-mono bg-blue-50 border-blue-200" min="0" placeholder="0.00" value={depositAmount || ''} onChange={(e) => setDepositAmount(parseFloat(e.target.value) || 0)} />
                         </div>
                     </div>
 
                     <div className="flex flex-col gap-1">
-                        {discountAmount > 0 && (
+                        {(discountAmount > 0 || depositAmount > 0) && (
                             <div className="flex justify-between text-muted-foreground text-sm font-semibold">
-                                <span>Subtotal:</span>
+                                <span>Cart Subtotal:</span>
                                 <span>${cartTotal.toFixed(2)}</span>
                             </div>
                         )}
                         <div className="flex justify-between font-black text-xl text-primary">
-                            <span>Total:</span>
-                            <span>${Math.max(0, cartTotal - (discountAmount || 0)).toFixed(2)}</span>
+                            <span>Amount Due:</span>
+                            <span>${Math.max(0, cartTotal - (discountAmount || 0) + (depositAmount || 0)).toFixed(2)}</span>
                         </div>
                     </div>
 
@@ -738,6 +865,87 @@ export default function SalesPOSPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Rental Item Dialog */}
+            <Dialog open={isRentalModalOpen} onOpenChange={setIsRentalModalOpen}>
+                <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Add Rental: {activeRental?.name}</DialogTitle>
+                    </DialogHeader>
+                    {activeRental && (
+                        <div className="flex flex-col gap-6 py-4">
+                            <div className="flex items-center gap-4">
+                                <div className="w-24 h-24 rounded-lg bg-blue-50 flex-shrink-0 border border-blue-100 shadow-sm relative overflow-hidden">
+                                    {activeRental.imageUrl ? <ImagePreview src={activeRental.imageUrl} className="object-cover w-full h-full absolute inset-0" alt={activeRental.name} /> : <div className="text-[10px] w-full h-full flex items-center justify-center text-blue-400 font-semibold">N/A</div>}
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="font-bold text-lg">{activeRental.name}</span>
+                                    <span className="text-sm border border-blue-200 bg-blue-50 text-blue-700 w-max px-2 py-0.5 rounded-full mt-1 uppercase text-[10px] font-bold">{activeRental.category?.name || 'Uncategorized'}</span>
+                                    <span className="text-sm font-semibold mt-2 text-blue-600">${activeRental.dailyPrice.toFixed(2)} / day</span>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-lg border">
+                                <div className="flex flex-col gap-2">
+                                    <Label>Start Date</Label>
+                                    <Input type="date" value={rentalStartDate} onChange={(e) => setRentalStartDate(e.target.value)} />
+                                </div>
+                                <div className="flex flex-col gap-2">
+                                    <Label>End Date</Label>
+                                    <Input type="date" value={rentalEndDate} onChange={(e) => setRentalEndDate(e.target.value)} min={rentalStartDate} />
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-4">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-sm">Quantity to Add:</span>
+                                    <div className="flex items-center gap-3">
+                                        <Input
+                                            type="number"
+                                            className="w-24 text-center font-bold"
+                                            min={1}
+                                            max={rentalCheckStatus.maxAvailable || 1}
+                                            value={rentalQty}
+                                            onChange={e => setRentalQty(parseInt(e.target.value) || 1)}
+                                            disabled={rentalCheckStatus.loading || rentalCheckStatus.maxAvailable === 0}
+                                        />
+                                        <span className="text-xs text-muted-foreground w-32 border-l pl-3">
+                                            {rentalCheckStatus.loading ? (
+                                                <span className="animate-pulse">Checking API...</span>
+                                            ) : rentalCheckStatus.error ? (
+                                                <span className="text-destructive font-bold text-[10px] uppercase">Error: {rentalCheckStatus.error}</span>
+                                            ) : rentalCheckStatus.maxAvailable !== null ? (
+                                                <span><strong className={rentalCheckStatus.maxAvailable > 0 ? "text-primary" : "text-destructive"}>{rentalCheckStatus.maxAvailable}</strong> available for these dates</span>
+                                            ) : null}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-between items-center bg-blue-50 border border-blue-100 p-3 rounded-lg mt-2">
+                                    <div className="flex flex-col">
+                                        <span className="font-bold text-sm text-blue-900">Total Rental Cost:</span>
+                                        <span className="text-[10px] text-blue-600 uppercase font-semibold mt-0.5">Calculated automatically</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-mono text-lg font-black text-blue-700">
+                                        ${(() => {
+                                            const s = new Date(rentalStartDate);
+                                            const e = new Date(rentalEndDate);
+                                            const diffDays = Math.max(1, Math.ceil(Math.abs(e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)));
+                                            if (isNaN(diffDays)) return "0.00";
+                                            return (activeRental.dailyPrice * diffDays * rentalQty).toFixed(2);
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setIsRentalModalOpen(false)}>Cancel</Button>
+                        <Button onClick={commitRental} disabled={rentalCheckStatus.loading || rentalCheckStatus.maxAvailable === 0 || rentalQty < 1}>Add to Cart</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
         </div>
     );
 }

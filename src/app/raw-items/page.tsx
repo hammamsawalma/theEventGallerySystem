@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, PackageSearch } from "lucide-react";
 import { ImagePreview } from "@/components/ui/image-preview";
 import { ImageUploader } from "@/components/ui/image-uploader";
 export default function RawItemsPage() {
@@ -25,6 +25,10 @@ export default function RawItemsPage() {
     const [newCategoryName, setNewCategoryName] = useState("");
     const [addCategoryComboOpen, setAddCategoryComboOpen] = useState(false);
 
+    // Initial Purchase Toggle inside Add Material
+    const [includeInitialPurchase, setIncludeInitialPurchase] = useState(false);
+    const [initialPurchaseData, setInitialPurchaseData] = useState({ packs: 1, unitsPerPack: 1, unitPricePerPack: 0, landedCost: 0 });
+
     // Manage/Edit Raw Material State
     const [isManageMaterialOpen, setIsManageMaterialOpen] = useState(false);
     const [manageComboOpen, setManageComboOpen] = useState(false);
@@ -34,8 +38,11 @@ export default function RawItemsPage() {
 
     // New Purchase Order State
     const [isNewPurchaseOpen, setIsNewPurchaseOpen] = useState(false);
-    const [newPurchase, setNewPurchase] = useState({ status: "COMPLETED", landedCost: 0 });
+    const [newPurchase, setNewPurchase] = useState({ status: "COMPLETED", landedCost: 0, supplier: "", notes: "" });
     const [purchaseItems, setPurchaseItems] = useState<{ rawItemId: string, packs: number, unitsPerPack: number, unitPricePerPack: number }[]>([]);
+
+    // Search state
+    const [inventorySearch, setInventorySearch] = useState("");
 
     // Draft item for the PO form
     const [draftPOItem, setDraftPOItem] = useState({ rawItemId: "", packs: 1, unitsPerPack: 1, unitPricePerPack: 0 });
@@ -62,18 +69,27 @@ export default function RawItemsPage() {
             alert("Name and Category are required");
             return;
         }
+
+        const payload = {
+            ...newMaterial,
+            initialPurchase: includeInitialPurchase ? initialPurchaseData : undefined
+        };
+
         const res = await fetch("/api/raw-items", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(newMaterial)
+            body: JSON.stringify(payload)
         });
         if (res.ok) {
             setIsAddMaterialOpen(false);
             setNewMaterial({ name: "", categoryId: "", imageUrl: "", isBulk: false });
+            setIncludeInitialPurchase(false);
+            setInitialPurchaseData({ packs: 1, unitsPerPack: 1, unitPricePerPack: 0, landedCost: 0 });
             setIsCreatingCategory(false);
             setNewCategoryName("");
             fetchData();
         } else {
+            console.error("Failed to add material", await res.text());
             alert("Failed to add material");
         }
     };
@@ -167,6 +183,8 @@ export default function RawItemsPage() {
             body: JSON.stringify({
                 status: newPurchase.status,
                 landedCost: newPurchase.landedCost,
+                supplier: newPurchase.supplier || null,
+                notes: newPurchase.notes || null,
                 items: purchaseItems.map(p => ({
                     rawItemId: p.rawItemId,
                     // The backend API expects a total 'quantity' and a 'unitPrice' for the single unit logic
@@ -178,7 +196,7 @@ export default function RawItemsPage() {
         if (res.ok) {
             setIsNewPurchaseOpen(false);
             setPurchaseItems([]);
-            setNewPurchase({ status: "COMPLETED", landedCost: 0 });
+            setNewPurchase({ status: "COMPLETED", landedCost: 0, supplier: "", notes: "" });
             fetchData();
         } else {
             alert("Failed to create purchase order");
@@ -206,14 +224,25 @@ export default function RawItemsPage() {
                                         <Select value={newPurchase.status} onValueChange={(val) => setNewPurchase(prev => ({ ...prev, status: val }))}>
                                             <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="PENDING">Pending</SelectItem>
-                                                <SelectItem value="COMPLETED">Completed</SelectItem>
+                                                <SelectItem value="PENDING">Pending (Not Received)</SelectItem>
+                                                <SelectItem value="COMPLETED">Received (Update Stock)</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label>Landed Cost (Shipping, etc) $</Label>
-                                        <Input type="number" value={newPurchase.landedCost} onChange={(e) => setNewPurchase(prev => ({ ...prev, landedCost: parseFloat(e.target.value) || 0 }))} />
+                                        <Input type="number" min={0} value={newPurchase.landedCost} onChange={(e) => setNewPurchase(prev => ({ ...prev, landedCost: parseFloat(e.target.value) || 0 }))} />
+                                    </div>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="space-y-2">
+                                        <Label>Supplier (Optional)</Label>
+                                        <Input placeholder="e.g. Alibaba Vendor XYZ" value={newPurchase.supplier} onChange={(e) => setNewPurchase(prev => ({ ...prev, supplier: e.target.value }))} />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label>Notes (Optional)</Label>
+                                        <Input placeholder="Order Tracking or Details..." value={newPurchase.notes} onChange={(e) => setNewPurchase(prev => ({ ...prev, notes: e.target.value }))} />
                                     </div>
                                 </div>
 
@@ -383,6 +412,37 @@ export default function RawItemsPage() {
                                 <div className="space-y-2">
                                     <Label>Image (Optional)</Label>
                                     <ImageUploader value={newMaterial.imageUrl} onChange={(url) => setNewMaterial(prev => ({ ...prev, imageUrl: url }))} />
+                                </div>
+
+                                <div className="space-y-4 py-2 border-t mt-2">
+                                    <div className="flex items-center space-x-2">
+                                        <input type="checkbox" id="includePurchase" className="w-4 h-4 rounded border-gray-300" checked={includeInitialPurchase} onChange={(e) => setIncludeInitialPurchase(e.target.checked)} />
+                                        <Label htmlFor="includePurchase" className="cursor-pointer font-bold text-primary">Include Initial Stock Purchase (Optional)</Label>
+                                    </div>
+                                    {includeInitialPurchase && (
+                                        <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-primary/20">
+                                            <div className="space-y-2">
+                                                <Label className="text-xs uppercase text-muted-foreground font-bold">Packs</Label>
+                                                <Input type="number" min={1} value={initialPurchaseData.packs} onChange={e => setInitialPurchaseData(prev => ({ ...prev, packs: parseInt(e.target.value) || 0 }))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs uppercase text-muted-foreground font-bold">Units per Pack</Label>
+                                                <Input type="number" min={1} value={initialPurchaseData.unitsPerPack} onChange={e => setInitialPurchaseData(prev => ({ ...prev, unitsPerPack: parseInt(e.target.value) || 0 }))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs uppercase text-muted-foreground font-bold">Price per Pack ($)</Label>
+                                                <Input type="number" min={0} value={initialPurchaseData.unitPricePerPack} onChange={e => setInitialPurchaseData(prev => ({ ...prev, unitPricePerPack: parseFloat(e.target.value) || 0 }))} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label className="text-xs uppercase text-muted-foreground font-bold">Landed Cost ($)</Label>
+                                                <Input type="number" min={0} value={initialPurchaseData.landedCost} onChange={e => setInitialPurchaseData(prev => ({ ...prev, landedCost: parseFloat(e.target.value) || 0 }))} />
+                                            </div>
+                                            <div className="col-span-2 pt-2 border-t mt-2 flex justify-between text-sm">
+                                                <span className="text-muted-foreground">Total Units: <strong className="text-foreground">{initialPurchaseData.packs * initialPurchaseData.unitsPerPack}</strong></span>
+                                                <span className="text-muted-foreground">Initial Avg Cost: <strong className="text-foreground">${initialPurchaseData.packs && initialPurchaseData.unitsPerPack ? ((initialPurchaseData.packs * initialPurchaseData.unitPricePerPack + initialPurchaseData.landedCost) / (initialPurchaseData.packs * initialPurchaseData.unitsPerPack)).toFixed(2) : "0.00"}</strong></span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <DialogFooter>
@@ -557,93 +617,86 @@ export default function RawItemsPage() {
                 </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
+            <div className="w-full">
                 <Card>
-                    <CardHeader>
-                        <CardTitle>Current Inventory</CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2">
+                        <CardTitle className="text-xl">Current Physical Inventory</CardTitle>
+                        <div className="w-72">
+                            <Input
+                                placeholder="Search inventory by name, category, or ID..."
+                                value={inventorySearch}
+                                onChange={(e) => setInventorySearch(e.target.value)}
+                                className="h-9 border-primary/20 bg-muted/30"
+                            />
+                        </div>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Item</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead className="text-right">Stock</TableHead>
-                                    <TableHead className="text-right">Avg Cost</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {rawItems.map((item) => (
-                                    <TableRow key={item.id}>
-                                        <TableCell className="font-medium flex items-center gap-3">
-                                            <div className="w-10 h-10 rounded bg-muted flex-shrink-0 border overflow-hidden">
-                                                {item.imageUrl ? <ImagePreview src={item.imageUrl} className="w-full h-full object-cover" alt={item.name} /> : <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground bg-secondary/30">N/A</div>}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span>{item.name}</span>
-                                                <span className="text-[10px] text-muted-foreground">{item.id}</span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="bg-primary/10 text-primary uppercase font-bold text-[10px] px-2 py-1 rounded-full">{item.category?.name || 'Uncategorized'}</span>
-                                        </TableCell>
-                                        <TableCell className="text-right font-medium">
-                                            {item.currentStock.toFixed(1)} <span className="text-[10px] text-muted-foreground uppercase font-bold">Units</span>
-                                        </TableCell>
-                                        <TableCell className="text-right">${item.movingAverageCost.toFixed(2)}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {rawItems.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                            No raw items found.
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 mt-2">
+                            {rawItems
+                                .filter(item =>
+                                    item.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                                    item.category?.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                                    item.id.toLowerCase().includes(inventorySearch.toLowerCase())
+                                )
+                                .map((item) => (
+                                    <Card key={item.id} className="cursor-pointer hover:border-primary/50 shadow-sm hover:shadow-md transition-all group overflow-hidden flex flex-col" onClick={() => {
+                                        setEditingMaterial({
+                                            id: item.id,
+                                            name: item.name,
+                                            categoryId: item.categoryId || "",
+                                            imageUrl: item.imageUrl || "",
+                                            currentStock: item.currentStock,
+                                            movingAverageCost: item.movingAverageCost,
+                                            adjustmentReason: "",
+                                            originalStock: item.currentStock
+                                        });
+                                        setIsManageMaterialOpen(true);
+                                    }}>
+                                        <div className="aspect-square w-full bg-muted border-b relative overflow-hidden">
+                                            {item.imageUrl ? <ImagePreview src={item.imageUrl} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" alt={item.name} /> : <div className="w-full h-full flex items-center justify-center text-[10px] text-muted-foreground font-semibold bg-secondary/30 tracking-widest">NO IMAGE</div>}
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Recent Purchases</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>ID</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Total Cost</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {purchases.map((purchase) => {
-                                    const itemTotal = purchase.items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
-                                    const totalCost = purchase.landedCost + itemTotal;
-
-                                    return (
-                                        <TableRow key={purchase.id}>
-                                            <TableCell className="font-mono text-xs">{purchase.id.split('-')[0]}</TableCell>
-                                            <TableCell>
-                                                <span className={`px-2 py-1 rounded-full text-xs ${purchase.status === 'COMPLETED' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}`}>
-                                                    {purchase.status}
+                                            <div className="absolute top-2 left-2">
+                                                <span className="bg-background/95 backdrop-blur-sm text-primary uppercase font-bold text-[9px] px-2 py-0.5 rounded-full shadow-sm border border-primary/10 tracking-wider">
+                                                    {item.category?.name || 'Uncategorized'}
                                                 </span>
-                                            </TableCell>
-                                            <TableCell className="text-right">${totalCost.toFixed(2)}</TableCell>
-                                        </TableRow>
-                                    );
-                                })}
-                                {purchases.length === 0 && (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-muted-foreground py-8">
-                                            No purchases found.
-                                        </TableCell>
-                                    </TableRow>
+                                            </div>
+                                        </div>
+
+                                        <CardContent className="p-3 flex-1 flex flex-col bg-card">
+                                            <h3 className="font-bold text-sm leading-tight line-clamp-2 min-h-[2.5rem]">{item.name}</h3>
+                                            <div className="text-[10px] text-muted-foreground font-mono bg-muted/50 px-1 py-0.5 rounded w-max mt-1 mb-3">ID: {item.id.split('-')[0]}</div>
+
+                                            <div className="mt-auto pt-2 border-t flex flex-col gap-2">
+                                                <div className="flex justify-between items-end">
+                                                    <span className="text-[11px] text-muted-foreground font-bold uppercase tracking-wider">Stock</span>
+                                                    <div className="flex flex-col items-end leading-none">
+                                                        <span className={`text-base font-black ${item.currentStock > 10 ? 'text-green-600' : item.currentStock > 0 ? 'text-amber-500' : 'text-red-500'}`}>
+                                                            {item.currentStock.toFixed(1)} <span className="text-[9px] uppercase font-bold text-muted-foreground">u</span>
+                                                        </span>
+                                                        {item.currentStock <= 0 && <span className="text-[9px] text-red-500 font-bold uppercase tracking-wider mt-0.5 bg-red-100 px-1 py-0.5 rounded">Out of Stock</span>}
+                                                    </div>
+                                                </div>
+
+                                                <div className="flex justify-between items-center bg-muted/50 p-1.5 rounded border border-border/50">
+                                                    <span className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Avg Cost</span>
+                                                    <span className="font-mono text-xs font-bold">${item.movingAverageCost.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+
+                            {rawItems.filter(item =>
+                                item.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                                item.category?.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
+                                item.id.toLowerCase().includes(inventorySearch.toLowerCase())
+                            ).length === 0 && (
+                                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10">
+                                        <PackageSearch className="w-10 h-10 opacity-20 mb-3" />
+                                        <span className="text-sm font-medium">No raw inventory matches your search.</span>
+                                    </div>
                                 )}
-                            </TableBody>
-                        </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

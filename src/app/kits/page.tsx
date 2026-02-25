@@ -235,85 +235,71 @@ export default function KitsInventoryPage() {
                     <CardTitle>All Assembled Kits</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Kit Config</TableHead>
-                                <TableHead>Base Bill of Materials (BOM)</TableHead>
-                                <TableHead className="text-right whitespace-nowrap">Net Cost</TableHead>
-                                <TableHead className="text-right whitespace-nowrap">Formula Retail Price</TableHead>
-                                <TableHead className="text-right">Current Stock</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {kits.map((kit) => (
-                                <TableRow key={kit.id} className="align-middle">
-                                    <TableCell>
-                                        <div className="flex flex-col gap-2 min-w-[120px]">
-                                            <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-lg bg-muted flex-shrink-0 border overflow-hidden shadow-sm">
-                                                {kit.imageUrl ? <ImagePreview src={kit.imageUrl} className="w-full h-full object-cover transition-transform hover:scale-105" alt={kit.name} /> : <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground bg-secondary/30">N/A</div>}
-                                            </div>
-                                            <div className="flex flex-col mt-1">
-                                                <span className="font-bold text-lg">{kit.name}</span>
-                                                <span className="text-[9px] font-mono text-muted-foreground">{kit.id.split('-')[0]}</span>
-                                            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mt-4">
+                        {kits.map((kit) => (
+                            <Card key={kit.id} className="flex flex-col overflow-hidden hover:shadow-md transition-shadow">
+                                <div className="aspect-video w-full bg-muted border-b relative">
+                                    {kit.imageUrl ? <ImagePreview src={kit.imageUrl} className="w-full h-full object-cover" alt={kit.name} /> : <div className="w-full h-full flex items-center justify-center text-xs text-muted-foreground font-semibold bg-secondary/30">NO IMAGE</div>}
+                                    <div className="absolute top-2 right-2 flex gap-1">
+                                        <Button variant="secondary" size="icon" className="h-7 w-7 bg-background/80 backdrop-blur shadow-sm hover:bg-background" onClick={() => handleEditClick(kit)}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9" /><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg>
+                                        </Button>
+                                        <Button variant="destructive" size="icon" className="h-7 w-7 shadow-sm opacity-80 hover:opacity-100" onClick={() => handleDeleteClick(kit.id)}>
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></svg>
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <CardContent className="p-4 flex-1 flex flex-col bg-card">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <div>
+                                            <h3 className="font-bold text-lg leading-tight">{kit.name}</h3>
+                                            <div className="text-[10px] text-muted-foreground font-mono mt-0.5">ID: {kit.id.split('-')[0]}</div>
                                         </div>
-                                    </TableCell>
-                                    <TableCell>
-                                        <div className="flex flex-col gap-2">
+                                    </div>
+
+                                    <div className="bg-muted/30 rounded-md p-2 mb-4 border max-h-[120px] overflow-y-auto">
+                                        <div className="text-[10px] uppercase font-bold text-muted-foreground mb-1">Bill of Materials:</div>
+                                        <div className="flex flex-col gap-1.5">
                                             {kit.bomItems?.map((bom: any) => {
                                                 const unitCost = bom.rawItem?.movingAverageCost || 0;
                                                 const rowCost = bom.quantity * unitCost;
                                                 return (
-                                                    <div key={bom.id} className="flex justify-between items-center text-sm bg-muted/40 p-2 rounded border gap-4">
-                                                        <span className="font-medium whitespace-nowrap pr-8">
+                                                    <div key={bom.id} className="flex justify-between items-center text-xs">
+                                                        <span className="font-medium truncate pr-2">
                                                             {bom.quantity}x {bom.rawItem?.name || 'Unknown'}
                                                         </span>
-                                                        <div className="flex flex-col items-end text-xs whitespace-nowrap">
-                                                            <span className="font-mono text-muted-foreground">${unitCost.toFixed(2)} ea</span>
-                                                            <span className="font-mono font-semibold">${rowCost.toFixed(2)}</span>
-                                                        </div>
+                                                        <span className="font-mono text-[10px] text-muted-foreground whitespace-nowrap">${rowCost.toFixed(2)}</span>
                                                     </div>
                                                 );
                                             })}
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="text-right align-middle">
-                                        <span className="font-mono text-lg font-bold text-muted-foreground bg-muted/50 px-2 py-1 rounded">
-                                            ${(kit.calculatedCost || 0).toFixed(2)}
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right align-middle">
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className="font-mono text-xl font-bold text-primary">
-                                                ${kit.baseSalePrice.toFixed(2)}
-                                            </span>
-                                            <span className="text-[10px] text-muted-foreground">Auto-calc: CEIL(ROUNDUP(Cost*2), 5)</span>
+                                    </div>
+
+                                    <div className="mt-auto grid grid-cols-2 gap-2 text-sm border-t pt-3">
+                                        <div className="flex flex-col">
+                                            <span className="text-[10px] text-muted-foreground uppercase font-bold">Net Cost</span>
+                                            <span className="font-mono font-bold">${(kit.calculatedCost || 0).toFixed(2)}</span>
                                         </div>
-                                    </TableCell>
-                                    <TableCell className="text-right align-middle">
-                                        <span className={`font-bold inline-block px-3 py-1.5 rounded-full text-xs ${kit.currentStock > 0 ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-                                            {kit.currentStock} assembled
-                                        </span>
-                                    </TableCell>
-                                    <TableCell className="text-right align-middle">
-                                        <div className="flex justify-end gap-2">
-                                            <Button variant="outline" size="sm" onClick={() => handleEditClick(kit)}>Edit</Button>
-                                            <Button variant="destructive" size="sm" onClick={() => handleDeleteClick(kit.id)}>Delete</Button>
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-[10px] text-primary uppercase font-bold">Base Retail</span>
+                                            <span className="font-mono font-black text-primary">${kit.baseSalePrice.toFixed(2)}</span>
                                         </div>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                            {kits.length === 0 && (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                        No kits define yet. Create a BOM to begin.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                    </div>
+                                </CardContent>
+                                <div className={`px-4 py-2 border-t flex justify-between items-center ${kit.currentStock > 0 ? 'bg-green-50/50' : 'bg-red-50/50'}`}>
+                                    <span className={`text-xs font-bold uppercase tracking-wider ${kit.currentStock > 0 ? 'text-green-700' : 'text-red-600'}`}>Inventory Stock</span>
+                                    <span className={`text-lg font-black ${kit.currentStock > 0 ? 'text-green-700' : 'text-red-600'}`}>{kit.currentStock}</span>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+
+                    {kits.length === 0 && (
+                        <div className="w-full py-12 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-lg bg-muted/10 mt-4">
+                            <span className="text-sm font-medium">No kit definitions configured yet.</span>
+                        </div>
+                    )}
                 </CardContent>
             </Card>
         </div>

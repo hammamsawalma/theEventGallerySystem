@@ -30,12 +30,15 @@ export async function PUT(request: Request, context: { params: Promise<{ id: str
                 });
 
                 // Add to stock and recalc MAC
+                const totalPurchasedUnits = updatedPurchase.items.reduce((sum, item) => sum + item.quantity, 0);
+                const landedCostPerUnit = totalPurchasedUnits > 0 ? (updatedPurchase.landedCost / totalPurchasedUnits) : 0;
+
                 for (const item of updatedPurchase.items) {
                     const rawItem = await tx.rawItem.findUnique({ where: { id: item.rawItemId } });
                     if (!rawItem) continue;
 
                     const oldTotalValue = rawItem.currentStock * rawItem.movingAverageCost;
-                    const newAddedValue = item.quantity * item.unitPrice;
+                    const newAddedValue = item.quantity * (item.unitPrice + landedCostPerUnit);
                     const totalNewStock = rawItem.currentStock + item.quantity;
 
                     let newMAC = rawItem.movingAverageCost;

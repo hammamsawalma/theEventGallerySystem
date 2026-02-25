@@ -27,9 +27,10 @@ model Customer {
 }
 
 model Category {
-  id       String    @id @default(uuid())
-  name     String    @unique
-  rawItems RawItem[]
+  id          String       @id @default(uuid())
+  name        String       @unique
+  rawItems    RawItem[]
+  rentalItems RentalItem[]
 }
 
 model ExpenseCategory {
@@ -61,6 +62,17 @@ model Kit {
   bomItems       KitBOM[]
 }
 
+model RentalItem {
+  id               String   @id @default(uuid())
+  name             String
+  imageUrl         String?
+  categoryId       String
+  category         Category @relation(fields: [categoryId], references: [id])
+  dailyPrice       Float
+  totalStock       Int      @default(0)
+  saleLineItems    SaleLineItem[]
+}
+
 model KitBOM {
   id         String   @id @default(uuid())
   kit        Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
@@ -76,6 +88,8 @@ model Purchase {
   date        DateTime @default(now())
   status      String   // PENDING, COMPLETED
   landedCost  Float    @default(0)
+  supplier    String?
+  notes       String?
   items       PurchaseLineItem[]
 }
 
@@ -96,6 +110,7 @@ model Sale {
   customerId     String
   date           DateTime @default(now())
   discountAmount Float    @default(0)
+  depositAmount  Float    @default(0)
   totalAmount    Float
   items          SaleLineItem[]
 }
@@ -104,14 +119,22 @@ model SaleLineItem {
   id               String   @id @default(uuid())
   sale             Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
   saleId           String
-  itemType         String   // 'RAW_ITEM', 'KIT', 'CUSTOM'
+  itemType         String   // 'RAW_ITEM', 'KIT', 'CUSTOM', 'RENTAL'
   itemId           String?   
   quantity         Int
   unitPrice        Float
-  unitCostAtSale   Float    // Snapshotted moving average cost (0 for CUSTOM)
+  unitCostAtSale   Float    // Snapshotted moving average cost (0 for CUSTOM/RENTAL)
   description      String?  // Description for CUSTOM rows
   isCustomized     Boolean  @default(false) 
   customizations   Customization[] 
+  rentalItem       RentalItem? @relation(fields: [rentalItemId], references: [id])
+  rentalItemId     String?
+  rentalStartDate  DateTime?
+  rentalEndDate    DateTime?
+  rentalDays       Int?
+  isReturned       Boolean  @default(false)
+  returnedAt       DateTime?
+  damagedQuantity  Int      @default(0)
 }
 
 model Customization {

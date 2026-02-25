@@ -8,63 +8,105 @@ import {
     ShoppingCart,
     Wrench,
     ClipboardList,
-    Menu
+    Menu,
+    History,
+    Activity,
+    Tent // Added Tent icon for Rentals
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
 function NavLinks() {
     return (
-        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
-            <Link
-                href="/"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <Home className="h-4 w-4" />
-                Dashboard
-            </Link>
-            <Link
-                href="/orders"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <ClipboardList className="h-4 w-4" />
-                Orders History
-            </Link>
-            <Link
-                href="/sales"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <ShoppingCart className="h-4 w-4" />
-                POS & Sales
-            </Link>
-            <Link
-                href="/raw-items"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <PackageSearch className="h-4 w-4" />
-                Raw Items & Purchases
-            </Link>
-            <Link
-                href="/kits"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <Package className="h-4 w-4" />
-                Kits & Inventory
-            </Link>
-            <Link
-                href="/manufacturing"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <Wrench className="h-4 w-4" />
-                Kit Assembly (BOM)
-            </Link>
-            <Link
-                href="/finances"
-                className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary"
-            >
-                <CreditCard className="h-4 w-4" />
-                Finances & P&L
-            </Link>
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4 py-4 gap-4">
+            <div>
+                <Link
+                    href="/"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <Home className="h-4 w-4" />
+                    Dashboard
+                </Link>
+            </div>
+
+            <div>
+                <div className="px-3 mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Inventory Management</div>
+                <Link
+                    href="/raw-items"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <PackageSearch className="h-4 w-4" />
+                    Raw Materials
+                </Link>
+                <Link
+                    href="/purchases"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <History className="h-4 w-4" />
+                    Purchase History
+                </Link>
+                <Link
+                    href="/rentals"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <Tent className="h-4 w-4" />
+                    Rental Inventory
+                </Link>
+            </div>
+
+            <div>
+                <div className="px-3 mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Production</div>
+                <Link
+                    href="/kits"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <Package className="h-4 w-4" />
+                    Kit Definitions
+                </Link>
+                <Link
+                    href="/manufacturing"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <Wrench className="h-4 w-4" />
+                    Smart Assembly
+                </Link>
+            </div>
+
+            <div>
+                <div className="px-3 mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Sales & Orders</div>
+                <Link
+                    href="/sales"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <ShoppingCart className="h-4 w-4" />
+                    Point of Sale
+                </Link>
+                <Link
+                    href="/orders"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <ClipboardList className="h-4 w-4" />
+                    Order History
+                </Link>
+            </div>
+
+            <div>
+                <div className="px-3 mb-2 text-xs font-bold uppercase tracking-wider text-muted-foreground">Administration</div>
+                <Link
+                    href="/finances"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <CreditCard className="h-4 w-4" />
+                    Finances & P&L
+                </Link>
+                <Link
+                    href="/system-logs"
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary hover:bg-muted/50"
+                >
+                    <Activity className="h-4 w-4 shrink-0" />
+                    System Logs
+                </Link>
+            </div>
         </nav>
     )
 }
