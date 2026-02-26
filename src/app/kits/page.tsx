@@ -110,8 +110,8 @@ export default function KitsInventoryPage() {
                             <DialogTitle>{isEditMode ? "Edit Kit" : "Define New Kit Config (BOM)"}</DialogTitle>
                         </DialogHeader>
                         <div className="grid gap-6 py-6 border-b">
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="space-y-2 col-span-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="space-y-2 col-span-1 sm:col-span-2">
                                     <Label>Kit Name</Label>
                                     <Input value={newKit.name} onChange={e => setNewKit(prev => ({ ...prev, name: e.target.value }))} placeholder="e.g. VIP Table Setup" />
                                 </div>
@@ -164,7 +164,7 @@ export default function KitsInventoryPage() {
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[300px] md:w-[400px] p-0 shadow-lg border" align="start">
+                                            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[400px] p-0 shadow-lg border" align="start">
                                                 <Command>
                                                     <CommandInput placeholder="Search by name or category..." className="h-9" />
                                                     <CommandList>

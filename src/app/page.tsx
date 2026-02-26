@@ -83,7 +83,7 @@ export default async function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 flex flex-col">
+        <Card className="lg:col-span-4 flex flex-col">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>Recent Sales Activity</CardTitle>
             <Link href="/orders" className="text-sm text-primary hover:underline font-medium">View All Orders &rarr;</Link>
@@ -108,7 +108,7 @@ export default async function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <Card className="col-span-3">
+        <Card className="lg:col-span-3">
           <CardHeader>
             <CardTitle>System Logs</CardTitle>
           </CardHeader>

@@ -162,38 +162,40 @@ export default function FinancesPage() {
                     <CardHeader>
                         <CardTitle className="text-xl">Recent Expenses Log</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Description</TableHead>
-                                    <TableHead className="text-right">Amount</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {expenses.map((expense) => (
-                                    <TableRow key={expense.id}>
-                                        <TableCell className="text-muted-foreground">
-                                            {new Date(expense.date).toLocaleDateString()}
-                                        </TableCell>
-                                        <TableCell>{expense.category?.name || 'General'}</TableCell>
-                                        <TableCell>{expense.description || '-'}</TableCell>
-                                        <TableCell className="text-right font-bold text-red-600">
-                                            -${expense.amount.toFixed(2)}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                                {expenses.length === 0 && (
+                    <CardContent className="p-0 sm:p-6">
+                        <div className="w-full overflow-x-auto">
+                            <Table>
+                                <TableHeader>
                                     <TableRow>
-                                        <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                                            No operating expenses recorded.
-                                        </TableCell>
+                                        <TableHead>Date</TableHead>
+                                        <TableHead>Category</TableHead>
+                                        <TableHead>Description</TableHead>
+                                        <TableHead className="text-right">Amount</TableHead>
                                     </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
+                                </TableHeader>
+                                <TableBody>
+                                    {expenses.map((expense) => (
+                                        <TableRow key={expense.id}>
+                                            <TableCell className="text-muted-foreground whitespace-nowrap">
+                                                {new Date(expense.date).toLocaleDateString()}
+                                            </TableCell>
+                                            <TableCell className="whitespace-nowrap">{expense.category?.name || 'General'}</TableCell>
+                                            <TableCell className="min-w-[150px]">{expense.description || '-'}</TableCell>
+                                            <TableCell className="text-right font-bold text-red-600">
+                                                -${expense.amount.toFixed(2)}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    {expenses.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
+                                                No operating expenses recorded.
+                                            </TableCell>
+                                        </TableRow>
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

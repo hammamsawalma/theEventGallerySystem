@@ -218,7 +218,7 @@ export default function RawItemsPage() {
                                 <DialogTitle>Create Purchase Order</DialogTitle>
                             </DialogHeader>
                             <div className="grid gap-4 py-4">
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Status</Label>
                                         <Select value={newPurchase.status} onValueChange={(val) => setNewPurchase(prev => ({ ...prev, status: val }))}>
@@ -235,7 +235,7 @@ export default function RawItemsPage() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div className="space-y-2">
                                         <Label>Supplier (Optional)</Label>
                                         <Input placeholder="e.g. Alibaba Vendor XYZ" value={newPurchase.supplier} onChange={(e) => setNewPurchase(prev => ({ ...prev, supplier: e.target.value }))} />
@@ -282,7 +282,7 @@ export default function RawItemsPage() {
                                                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                     </Button>
                                                 </PopoverTrigger>
-                                                <PopoverContent className="w-[300px] md:w-[400px] p-0 shadow-lg border" align="start">
+                                                <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[400px] p-0 shadow-lg border" align="start">
                                                     <Command>
                                                         <CommandInput placeholder="Search by name or category..." className="h-9" />
                                                         <CommandList>
@@ -368,7 +368,7 @@ export default function RawItemsPage() {
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[400px] p-0 shadow-lg border" align="start">
+                                            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[400px] p-0 shadow-lg border" align="start">
                                                 <Command>
                                                     <CommandInput placeholder="Search categories..." className="h-9" />
                                                     <CommandList>
@@ -420,7 +420,7 @@ export default function RawItemsPage() {
                                         <Label htmlFor="includePurchase" className="cursor-pointer font-bold text-primary">Include Initial Stock Purchase (Optional)</Label>
                                     </div>
                                     {includeInitialPurchase && (
-                                        <div className="grid grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-primary/20">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-muted/30 p-4 rounded-md border border-primary/20">
                                             <div className="space-y-2">
                                                 <Label className="text-xs uppercase text-muted-foreground font-bold">Packs</Label>
                                                 <Input type="number" min={1} value={initialPurchaseData.packs} onChange={e => setInitialPurchaseData(prev => ({ ...prev, packs: parseInt(e.target.value) || 0 }))} />
@@ -437,7 +437,7 @@ export default function RawItemsPage() {
                                                 <Label className="text-xs uppercase text-muted-foreground font-bold">Landed Cost ($)</Label>
                                                 <Input type="number" min={0} value={initialPurchaseData.landedCost} onChange={e => setInitialPurchaseData(prev => ({ ...prev, landedCost: parseFloat(e.target.value) || 0 }))} />
                                             </div>
-                                            <div className="col-span-2 pt-2 border-t mt-2 flex justify-between text-sm">
+                                            <div className="col-span-1 sm:col-span-2 pt-2 border-t mt-2 flex flex-col sm:flex-row justify-between text-sm gap-2">
                                                 <span className="text-muted-foreground">Total Units: <strong className="text-foreground">{initialPurchaseData.packs * initialPurchaseData.unitsPerPack}</strong></span>
                                                 <span className="text-muted-foreground">Initial Avg Cost: <strong className="text-foreground">${initialPurchaseData.packs && initialPurchaseData.unitsPerPack ? ((initialPurchaseData.packs * initialPurchaseData.unitPricePerPack + initialPurchaseData.landedCost) / (initialPurchaseData.packs * initialPurchaseData.unitsPerPack)).toFixed(2) : "0.00"}</strong></span>
                                             </div>
@@ -470,7 +470,7 @@ export default function RawItemsPage() {
                                                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-[400px] p-0 shadow-lg border" align="start">
+                                            <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[400px] p-0 shadow-lg border" align="start">
                                                 <Command>
                                                     <CommandInput placeholder="Search by name or category..." className="h-9" />
                                                     <CommandList>
@@ -528,7 +528,7 @@ export default function RawItemsPage() {
                                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                         </Button>
                                                     </PopoverTrigger>
-                                                    <PopoverContent className="w-[400px] p-0 shadow-lg border" align="start">
+                                                    <PopoverContent className="w-[calc(100vw-2rem)] sm:w-[400px] p-0 shadow-lg border" align="start">
                                                         <Command>
                                                             <CommandInput placeholder="Search categories..." className="h-9" />
                                                             <CommandList>
@@ -569,7 +569,7 @@ export default function RawItemsPage() {
                                                 </div>
                                             )}
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <div className="space-y-2">
                                                 <Label>Stock (Units)</Label>
                                                 <Input type="number" value={editingMaterial.currentStock} onChange={(e) => setEditingMaterial(prev => ({ ...prev!, currentStock: parseFloat(e.target.value) || 0 }))} />

@@ -81,56 +81,58 @@ export default function SystemLogsClient() {
                     </div>
                 </CardHeader>
                 <CardContent className="p-0">
-                    <Table>
-                        <TableHeader className="bg-muted/30">
-                            <TableRow>
-                                <TableHead className="w-[180px]">Timestamp</TableHead>
-                                <TableHead className="w-[200px]">Action</TableHead>
-                                <TableHead className="w-[200px]">User / Actor</TableHead>
-                                <TableHead>Event Details</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {loading ? (
+                    <div className="w-full overflow-x-auto">
+                        <Table>
+                            <TableHeader className="bg-muted/30">
                                 <TableRow>
-                                    <TableCell colSpan={4} className="h-64 text-center">
-                                        <div className="flex flex-col items-center justify-center text-muted-foreground animate-pulse">
-                                            <span>Loading system logs...</span>
-                                        </div>
-                                    </TableCell>
+                                    <TableHead className="w-[180px]">Timestamp</TableHead>
+                                    <TableHead className="w-[200px]">Action</TableHead>
+                                    <TableHead className="w-[200px]">User / Actor</TableHead>
+                                    <TableHead>Event Details</TableHead>
                                 </TableRow>
-                            ) : filteredLogs.length > 0 ? (
-                                filteredLogs.map((log) => (
-                                    <TableRow key={log.id} className="cursor-default hover:bg-muted/20">
-                                        <TableCell className="font-mono text-xs whitespace-nowrap text-muted-foreground">
-                                            {format(new Date(log.date), "MMM d, yyyy HH:mm:ss")}
-                                        </TableCell>
-                                        <TableCell>
-                                            <span className="inline-flex items-center rounded-md bg-secondary/30 px-2 py-1 text-xs font-semibold ring-1 ring-inset ring-secondary/50 uppercase tracking-wider">
-                                                {log.action}
-                                            </span>
-                                        </TableCell>
-                                        <TableCell className="text-sm font-medium">
-                                            {log.userId === 'SYSTEM' ? (
-                                                <span className="text-indigo-600 font-bold text-xs uppercase bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">SYSTEM AGENT</span>
-                                            ) : (
-                                                <span className="font-mono text-xs">{log.userId}</span>
-                                            )}
-                                        </TableCell>
-                                        <TableCell className="text-sm">
-                                            {log.details}
+                            </TableHeader>
+                            <TableBody>
+                                {loading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-64 text-center">
+                                            <div className="flex flex-col items-center justify-center text-muted-foreground animate-pulse">
+                                                <span>Loading system logs...</span>
+                                            </div>
                                         </TableCell>
                                     </TableRow>
-                                ))
-                            ) : (
-                                <TableRow>
-                                    <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
-                                        No recent logs found matching your criteria.
-                                    </TableCell>
-                                </TableRow>
-                            )}
-                        </TableBody>
-                    </Table>
+                                ) : filteredLogs.length > 0 ? (
+                                    filteredLogs.map((log) => (
+                                        <TableRow key={log.id} className="cursor-default hover:bg-muted/20">
+                                            <TableCell className="font-mono text-xs whitespace-nowrap text-muted-foreground">
+                                                {format(new Date(log.date), "MMM d, yyyy HH:mm:ss")}
+                                            </TableCell>
+                                            <TableCell>
+                                                <span className="inline-flex items-center rounded-md bg-secondary/30 px-2 py-1 text-xs font-semibold ring-1 ring-inset ring-secondary/50 uppercase tracking-wider">
+                                                    {log.action}
+                                                </span>
+                                            </TableCell>
+                                            <TableCell className="text-sm font-medium">
+                                                {log.userId === 'SYSTEM' ? (
+                                                    <span className="text-indigo-600 font-bold text-xs uppercase bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">SYSTEM AGENT</span>
+                                                ) : (
+                                                    <span className="font-mono text-xs">{log.userId}</span>
+                                                )}
+                                            </TableCell>
+                                            <TableCell className="text-sm">
+                                                {log.details}
+                                            </TableCell>
+                                        </TableRow>
+                                    ))
+                                ) : (
+                                    <TableRow>
+                                        <TableCell colSpan={4} className="h-32 text-center text-muted-foreground">
+                                            No recent logs found matching your criteria.
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </TableBody>
+                        </Table>
+                    </div>
                 </CardContent>
             </Card>
         </div>
